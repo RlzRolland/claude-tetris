@@ -55,7 +55,8 @@ const MAX_START_LEVEL = 15;
 
 let board, current, next, hold, holdUsed, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let gridColor = '#22222e';
-let startLevel = 1;
+let startLevel = 1; // pending selection for the NEXT game, from the pause menu
+let gameStartLevel = 1; // snapshot of startLevel used by the CURRENT game's level math
 
 function loadStartLevel() {
   const stored = parseInt(localStorage.getItem('tetris-start-level'), 10);
@@ -84,6 +85,13 @@ function setupStartLevelSelect() {
 }
 
 setupStartLevelSelect();
+
+function setupPauseControlsList() {
+  const sourceList = document.querySelector('.controls ul');
+  if (sourceList) pauseControls.appendChild(sourceList.cloneNode(true));
+}
+
+setupPauseControlsList();
 
 pauseResumeBtn.addEventListener('click', togglePause);
 pauseRestartBtn.addEventListener('click', init);
@@ -174,7 +182,7 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
+    level = gameStartLevel + Math.floor(lines / 10);
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
@@ -373,7 +381,8 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = startLevel;
+  gameStartLevel = startLevel;
+  level = gameStartLevel;
   paused = false;
   gameOver = false;
   dropInterval = Math.max(100, 1000 - (level - 1) * 90);
