@@ -117,11 +117,16 @@ body {
   letter-spacing: 1px;
 }
 
-#next-canvas {
+#next-canvas,
+#hold-canvas {
   display: block;
   border: 1px solid var(--border);
   background: var(--panel-bg);
   border-radius: 4px;
+}
+
+#hold-canvas.dimmed {
+  opacity: 0.4;
 }
 
 /* ---- Controles ---- */
