@@ -38,13 +38,69 @@ const scoreEl = document.getElementById('score');
 const linesEl = document.getElementById('lines');
 const levelEl = document.getElementById('level');
 const overlay = document.getElementById('overlay');
+const overlayGameover = document.querySelector('.overlay-gameover');
+const overlayPause = document.querySelector('.overlay-pause');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeToggle = document.getElementById('theme-toggle');
+const pauseResumeBtn = document.getElementById('pause-resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const pauseControlsBtn = document.getElementById('pause-controls-btn');
+const pauseControls = document.getElementById('pause-controls');
+const startLevelSelect = document.getElementById('start-level-select');
+
+const MIN_START_LEVEL = 1;
+const MAX_START_LEVEL = 15;
 
 let board, current, next, hold, holdUsed, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let gridColor = '#22222e';
+let startLevel = 1; // pending selection for the NEXT game, from the pause menu
+let gameStartLevel = 1; // snapshot of startLevel used by the CURRENT game's level math
+
+function loadStartLevel() {
+  const stored = parseInt(localStorage.getItem('tetris-start-level'), 10);
+  if (Number.isInteger(stored) && stored >= MIN_START_LEVEL && stored <= MAX_START_LEVEL) {
+    return stored;
+  }
+  return 1;
+}
+
+function setupStartLevelSelect() {
+  for (let lvl = MIN_START_LEVEL; lvl <= MAX_START_LEVEL; lvl++) {
+    const option = document.createElement('option');
+    option.value = lvl;
+    option.textContent = lvl;
+    startLevelSelect.appendChild(option);
+  }
+  startLevel = loadStartLevel();
+  startLevelSelect.value = startLevel;
+  startLevelSelect.addEventListener('change', () => {
+    const value = parseInt(startLevelSelect.value, 10);
+    if (Number.isInteger(value) && value >= MIN_START_LEVEL && value <= MAX_START_LEVEL) {
+      startLevel = value;
+      localStorage.setItem('tetris-start-level', String(startLevel));
+    }
+  });
+}
+
+setupStartLevelSelect();
+
+function setupPauseControlsList() {
+  const sourceList = document.querySelector('.controls ul');
+  if (sourceList) pauseControls.appendChild(sourceList.cloneNode(true));
+}
+
+setupPauseControlsList();
+
+pauseResumeBtn.addEventListener('click', togglePause);
+pauseRestartBtn.addEventListener('click', init);
+pauseControlsBtn.addEventListener('click', () => {
+  const expanded = !pauseControls.classList.contains('hidden');
+  pauseControls.classList.toggle('hidden', expanded);
+  pauseControlsBtn.setAttribute('aria-expanded', String(!expanded));
+  pauseControlsBtn.textContent = expanded ? 'Ver controles' : 'Ocultar controles';
+});
 
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -126,7 +182,7 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
+    level = gameStartLevel + Math.floor(lines / 10);
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
@@ -279,6 +335,8 @@ function endGame() {
   draw();
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  overlayPause.classList.add('hidden');
+  overlayGameover.classList.remove('hidden');
   overlay.classList.remove('hidden');
 }
 
@@ -287,12 +345,16 @@ function togglePause() {
   paused = !paused;
   if (!paused) {
     overlay.classList.add('hidden');
+    overlayPause.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
+    pauseControls.classList.add('hidden');
+    pauseControlsBtn.setAttribute('aria-expanded', 'false');
+    pauseControlsBtn.textContent = 'Ver controles';
+    overlayGameover.classList.add('hidden');
+    overlayPause.classList.remove('hidden');
     overlay.classList.remove('hidden');
   }
 }
@@ -319,10 +381,11 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  gameStartLevel = startLevel;
+  level = gameStartLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   hold = null;
@@ -332,12 +395,14 @@ function init() {
   updateHUD();
   drawHold();
   overlay.classList.add('hidden');
+  overlayGameover.classList.add('hidden');
+  overlayPause.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
