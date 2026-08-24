@@ -222,6 +222,41 @@ kbd {
   color: var(--accent-contrast);
 }
 
+/* ---- Skin select ---- */
+.skin-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skin-select-text {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--label-color);
+}
+
+#skin-select {
+  background: var(--panel-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+#skin-select:hover {
+  border-color: var(--accent);
+}
+
+#skin-select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* ---- Overlay ---- */
 .overlay {
   position: absolute;
