@@ -1,0 +1,99 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  triage:
+    if: |
+      github.event.action == 'opened' ||
+      (github.event.action == 'edited' && !contains(github.event.issue.labels.*.name, 'triaged'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Ensure triage labels exist
+        run: |
+          declare -A LABELS=(
+            ["triaged"]="ededed:Issue ya analizado por el bot de triage"
+            ["bug"]="d73a4a:Algo no funciona como se espera"
+            ["enhancement"]="a2eeef:Nueva funcionalidad o mejora"
+            ["question"]="d876e3:Pregunta o duda sobre el proyecto"
+            ["documentation"]="0075ca:Relacionado con documentación"
+            ["area:rendering"]="c5def5:Dibujo en canvas / colores / ghost piece"
+            ["area:controls"]="c5def5:Input de teclado / movimiento / rotación"
+            ["area:collision"]="c5def5:Detección de colisiones / wall kicks"
+            ["area:scoring"]="c5def5:Puntaje / niveles / velocidad de caída"
+            ["area:game-loop"]="c5def5:Loop principal / timing / pausa / game over"
+            ["area:ui-hud"]="c5def5:HTML/CSS, HUD, overlay, next-piece preview"
+            ["priority:high"]="b60205:Prioridad alta"
+            ["priority:medium"]="fbca04:Prioridad media"
+            ["priority:low"]="0e8a16:Prioridad baja"
+          )
+          for name in "${!LABELS[@]}"; do
+            color="${LABELS[$name]%%:*}"
+            desc="${LABELS[$name]#*:}"
+            gh label create "$name" --color "$color" --description "$desc" --force
+          done
+
+      - name: Run Claude Issue Triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+            TITLE: ${{ github.event.issue.title }}
+            BODY:
+            ${{ github.event.issue.body }}
+            AUTHOR: ${{ github.event.issue.user.login }}
+
+            Este es un juego de Tetris clásico en JavaScript vanilla (sin frameworks,
+            sin build). Arquitectura: `index.html` (DOM/canvas), `style.css` (tema
+            visual), `game.js` (toda la lógica: tablero, piezas/rotación, colisiones,
+            loop de juego, clear de líneas, scoring, nivel/velocidad, ghost piece).
+
+            Tu tarea:
+            1. Usa `./.github/scripts/gh-readonly.sh issue view` para releer el
+               issue si necesitas más contexto, y `./.github/scripts/gh-readonly.sh
+               search issues "..."` para detectar posibles duplicados.
+            2. Clasifica el issue eligiendo SOLO entre los labels ya existentes en
+               el repo (usa `./.github/scripts/gh-readonly.sh label list` para
+               verlos) — exactamente uno de tipo (bug/enhancement/question/
+               documentation), cero o más de área (area:rendering, area:controls,
+               area:collision, area:scoring, area:game-loop, area:ui-hud) si aplica,
+               y opcionalmente una prioridad (priority:high/medium/low). NUNCA
+               inventes labels nuevos.
+            3. Aplica los labels elegidos con `./.github/scripts/label-issue.sh
+               --add-label "..."` (uno o más flags en la misma llamada). Al final
+               añade siempre `--add-label "triaged"` en esa misma llamada.
+            4. Publica UN comentario de diagnóstico en español con
+               `./.github/scripts/comment-issue.sh` (pásale el texto por stdin),
+               con esta estructura:
+               - **Resumen**: qué reporta o pide el issue, en 1-2 frases.
+               - **Tipo y área**: qué labels le pusiste y por qué.
+               - **Diagnóstico técnico**: hipótesis de causa raíz (si es bug,
+                 referencia función/sección de `game.js` o `index.html` probable-
+                 mente involucrada) o alcance del feature (si es mejora).
+               - **Posible duplicado**: si encontraste un issue similar, menciónalo
+                 (#numero); si no, omite esta sección.
+               - **Sugerencia de enfoque**: 2-4 líneas de alto nivel sobre cómo
+                 abordar la solución (sin escribir código), para que sirva de punto
+                 de partida a quien lo implemente.
+
+            No modifiques el título ni el cuerpo del issue, no toques código ni
+            pull requests, no comentes en otros issues. Solo tienes permitido usar
+            los tres scripts mencionados arriba.
+          claude_args: |
+            --allowedTools "Bash(./.github/scripts/gh-readonly.sh:*),Bash(./.github/scripts/label-issue.sh:*),Bash(./.github/scripts/comment-issue.sh:*)"
