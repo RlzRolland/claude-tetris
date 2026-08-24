@@ -79,8 +79,11 @@ jobs:
                --add-label "..."` (uno o más flags en la misma llamada). Al final
                añade siempre `--add-label "triaged"` en esa misma llamada.
             4. Publica UN comentario de diagnóstico en español con
-               `./.github/scripts/comment-issue.sh` (pásale el texto por stdin),
-               con esta estructura:
+               `./.github/scripts/comment-issue.sh` (pásale el texto por stdin).
+               El comentario debe estar escrito en formato Markdown válido que
+               GitHub pueda renderizar correctamente (encabezados, listas,
+               negritas, referencias a issues con #numero, etc.), con esta
+               estructura:
                - **Resumen**: qué reporta o pide el issue, en 1-2 frases.
                - **Tipo y área**: qué labels le pusiste y por qué.
                - **Diagnóstico técnico**: hipótesis de causa raíz (si es bug,
